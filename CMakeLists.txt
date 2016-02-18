@@ -128,7 +128,7 @@ endif(DOXYGEN_FOUND)
 # source listings #
 ###################
 
-FILE(GLOB_RECURSE HeaderFiles ${MAIN_INCLUDE_PATH})
+FILE(GLOB_RECURSE HeaderFiles ${MAIN_INCLUDE_PATH}/*.h)
 
 # ximu api
 set(X_IMU_API_SRC
@@ -145,7 +145,7 @@ set(X_IMU_API_SRC
   src/ximuapi/serialization/reader_base.cpp
   src/ximuapi/serialization/packet_reader.cpp
   src/ximuapi/serialization/writer_base.cpp
-  #src/TrialCode.cpp
+  src/ros_driver/ximu_ros_driver.cpp
   ${HeaderFiles}
 )
 
@@ -235,7 +235,7 @@ add_executable (FXD_FLT_TEST tests/fixed_float_test.cpp)
 add_executable (DATA_TYPES_TEST tests/data_types_test.cpp)
 add_executable (DATA_SERIZ_READ tests/data_serialization_test.cpp)
 add_executable (DATA_SERIZ_WRITE tests/data_serial_writer_test.cpp)
-#add_executable (TRIAL_PROG src/TrialCode.cpp)
+add_executable (XIMU_ROS_DRIVER src/ros_driver/ximu_ros_driver.cpp)
 
 # if QT found build the tests/apps
 if (Qt5Widgets_FOUND)
@@ -287,7 +287,7 @@ target_link_libraries(FXD_FLT_TEST X-IMU-API)
 target_link_libraries(DATA_TYPES_TEST X-IMU-API)
 target_link_libraries(DATA_SERIZ_READ X-IMU-API)
 target_link_libraries(DATA_SERIZ_WRITE X-IMU-API)
-#target_link_libraries(TRIAL_PROG X-IMU-API ${serial_LIBRARIES})
+target_link_libraries(XIMU_ROS_DRIVER X-IMU-API ${serial_LIBRARIES})
 
 # add ximu port dump for as test data
 configure_file(data/ximu.dmp ximu.dmp COPYONLY)
