@@ -12,6 +12,8 @@ set(X_IMU_API_MAJOR_VERION 0)
 set(X_IMU_API_MINOR_VERION 1)
 set(X_IMU_API_PATCH_VERION 0)
 
+set(MAIN_INCLUDE_PATH "include/x_imu_ros_driver")
+
 
 # set compiler flags
 set(CMAKE_CXX_FLAGS "${CAMKE_CXX_FLAGS} -std=c++11")
@@ -19,12 +21,12 @@ set(CMAKE_CXX_FLAGS "${CAMKE_CXX_FLAGS} -std=c++11")
 
 # set main include directory
 include_directories(
-  include # main include directory
+  ${MAIN_INCLUDE_PATH} # main include directory
 )
 
 # For arm locate Threads
 string ( TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" CMAKE_SYSTEM_PROCESSOR_LOWERCASE)
-if ("${CMAKE_SYSTEM_PROCESSOR_LOWERCASE}$" MATCHES ".*arm.*") 
+if ("${CMAKE_SYSTEM_PROCESSOR_LOWERCASE}$" MATCHES ".*arm.*")
     find_package (Threads)
 endif()
 
@@ -45,6 +47,7 @@ find_package(Qt5LinguistTools)
 find_package(Qt5Gui)
 find_package(Qt5Designer)
 find_package(Qt5Core)
+find_package(serial REQUIRED)
 
 if (Qt5OpenGL_FOUND)
     string(REGEX MATCHALL "([0-9])" QT_OPENGL_VERSION ${Qt5OpenGL_VERSION})
@@ -77,6 +80,13 @@ if(Qt5OpenGL_MINOR_5_FOUND)
     MESSAGE(STATUS "Opengl Widget minor version: [SUCCES]")
 else()
     MESSAGE(STATUS "Opengl Widget minor version: [FAILED]")
+endif()
+if (serial_FOUND)
+    MESSAGE( STATUS "serial                    : [SUCCES]")
+    include_directories(${serial_INCLUDE_DIRS})
+    MESSAGE(STATUS ${serial_INCLUDE_DIRS})
+else()
+    MESSAGE( STATUS "serial                    : [FAILED]")
 endif()
 MESSAGE(STATUS "-MODULES-")
 
@@ -118,6 +128,8 @@ endif(DOXYGEN_FOUND)
 # source listings #
 ###################
 
+FILE(GLOB_RECURSE HeaderFiles ${MAIN_INCLUDE_PATH})
+
 # ximu api
 set(X_IMU_API_SRC
   src/ximuapi/packet/packet_encoding.cpp
@@ -133,6 +145,8 @@ set(X_IMU_API_SRC
   src/ximuapi/serialization/reader_base.cpp
   src/ximuapi/serialization/packet_reader.cpp
   src/ximuapi/serialization/writer_base.cpp
+  #src/TrialCode.cpp
+  ${HeaderFiles}
 )
 
 ######
@@ -148,9 +162,9 @@ endif (Qt5SerialPort_FOUND)
 
 # if widgets add simple window to src
 if (Qt5Widgets_FOUND)
-    set(SIMPLEWINDOW_MOC_HDRS include/ximugui/widgets/simplewindow.h)
-    set(LANGUAGE_SELECTION_MOC_HDRS include/ximugui/widgets/lanuageselectionwidget.h)
-    set(THEME_SELECTION_MOC_HDRS include/ximugui/widgets/themeselectionwidget.h)
+    set(SIMPLEWINDOW_MOC_HDRS ${MAIN_INCLUDE_PATH}/ximugui/widgets/simplewindow.h)
+    set(LANGUAGE_SELECTION_MOC_HDRS ${MAIN_INCLUDE_PATH}/ximugui/widgets/lanuageselectionwidget.h)
+    set(THEME_SELECTION_MOC_HDRS ${MAIN_INCLUDE_PATH}/ximugui/widgets/themeselectionwidget.h)
 
     list(APPEND X_IMU_GUI_SRC src/ximugui/widgets/simplewindow.cpp)
     list(APPEND X_IMU_GUI_SRC src/ximugui/widgets/lanuageselectionwidget.cpp)
@@ -174,13 +188,13 @@ if (Qt5SerialPort_FOUND AND Qt5Widgets_FOUND)
 endif (Qt5SerialPort_FOUND AND Qt5Widgets_FOUND)
 
 if(Qt5OpenGL_MINOR_5_FOUND)
-   qt5_wrap_cpp(MOC_GL include/ximuapi/gl/gl_context.h)
+   qt5_wrap_cpp(MOC_GL ${MAIN_INCLUDE_PATH}/ximuapi/gl/gl_context.h)
    set(X_IMU_API_GL src/ximuapi/gl/gl_context.cpp)
    MESSAGE(STATUS "--->${X_IMU_API_GL}")
 endif()
 
 if(Qt5OpenGL_MINOR_5_FOUND AND Qt5Widgets_FOUND)
-    set(ORIENTATIONVIEW_MOC_HDRS include/ximugui/widgets/orientationview.h)
+    set(ORIENTATIONVIEW_MOC_HDRS ${MAIN_INCLUDE_PATH}/ximugui/widgets/orientationview.h)
     list(APPEND X_IMU_GUI_SRC src/ximugui/widgets/orientationview.cpp)
     list(APPEND X_IMU_GUI_UI src/ximugui/widgets/orientationview.ui)
     list(APPEND X_IMU_GUI_H ${ORIENTATIONVIEW_MOC_HDRS})
@@ -221,6 +235,7 @@ add_executable (FXD_FLT_TEST tests/fixed_float_test.cpp)
 add_executable (DATA_TYPES_TEST tests/data_types_test.cpp)
 add_executable (DATA_SERIZ_READ tests/data_serialization_test.cpp)
 add_executable (DATA_SERIZ_WRITE tests/data_serial_writer_test.cpp)
+#add_executable (TRIAL_PROG src/TrialCode.cpp)
 
 # if QT found build the tests/apps
 if (Qt5Widgets_FOUND)
@@ -255,7 +270,7 @@ endif (Qt5SerialPort_FOUND AND Qt5Widgets_FOUND)
 # If both Widget and Opengl add the Opengl (cube)
 # widge. (Simple Quaternions that rotate cube )
 if (Qt5Widgets_FOUND AND Qt5OpenGL_FOUND AND Qt5OpenGL_MINOR_5_FOUND)
-    qt5_add_resources(ORIENTATIONVIEW_RCC_SRCS src/ximugui/rc/orientationview.qrc)    
+    qt5_add_resources(ORIENTATIONVIEW_RCC_SRCS src/ximugui/rc/orientationview.qrc)
     add_executable (QT_OPENGL_TEST tests/qt_opengl_test.cpp src/ximugui/widgets/orientationview.cpp src/ximugui/widgets/geometryengine.cpp
 ${UI_HEADERS} ${ORIENTATIONVIEW_MOC_SRCS} ${ORIENTATIONVIEW_RCC_SRCS})
     target_link_libraries(QT_OPENGL_TEST X-IMU-API Qt5::Widgets Qt5::OpenGL ${CMAKE_THREAD_LIBS_INIT})
@@ -272,6 +287,7 @@ target_link_libraries(FXD_FLT_TEST X-IMU-API)
 target_link_libraries(DATA_TYPES_TEST X-IMU-API)
 target_link_libraries(DATA_SERIZ_READ X-IMU-API)
 target_link_libraries(DATA_SERIZ_WRITE X-IMU-API)
+#target_link_libraries(TRIAL_PROG X-IMU-API ${serial_LIBRARIES})
 
 # add ximu port dump for as test data
 configure_file(data/ximu.dmp ximu.dmp COPYONLY)
@@ -341,16 +357,16 @@ endif()
 if (USE_PLUGINS AND Qt5OpenGL_MINOR_5_FOUND)
 
     set(ORIENTATION_VIEW_PLUGIN_MOC_HDRS
-            include/ximugui/widgets/orientationview_plugin.h
-            include/ximugui/widgets/orientationview.h
+            ${MAIN_INCLUDE_PATH}/ximugui/widgets/orientationview_plugin.h
+            ${MAIN_INCLUDE_PATH}/ximugui/widgets/orientationview.h
             )
 
     list(APPEND X_IMU_GUI_SRC src/ximugui/widgets/orientationview_plugin.cpp)
     list(APPEND X_IMU_GUI_H ${ORIENTATION_VIEW_PLUGIN_MOC_HDRS})
 
     qt5_wrap_cpp(ORIEN_PLUGIN
-        include/ximugui/widgets/orientationview_plugin.h
-        include/ximugui/widgets/orientationview.h
+        ${MAIN_INCLUDE_PATH}/ximugui/widgets/orientationview_plugin.h
+        ${MAIN_INCLUDE_PATH}/ximugui/widgets/orientationview.h
         )
     qt5_wrap_ui(ORIEN_UI  src/ximugui/widgets/orientationview.ui)
 
