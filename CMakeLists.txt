@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8)
-project(X-IMU-API)
+project(x_imu_ros_driver)
 
 # Policy for using X::Y
 if(POLICY CMP0020)
@@ -19,11 +19,6 @@ set(MAIN_INCLUDE_PATH "include/x_imu_ros_driver")
 set(CMAKE_CXX_FLAGS "${CAMKE_CXX_FLAGS} -std=c++11")
 
 
-# set main include directory
-include_directories(
-  ${MAIN_INCLUDE_PATH} # main include directory
-)
-
 # For arm locate Threads
 string ( TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" CMAKE_SYSTEM_PROCESSOR_LOWERCASE)
 if ("${CMAKE_SYSTEM_PROCESSOR_LOWERCASE}$" MATCHES ".*arm.*")
@@ -39,6 +34,13 @@ if (NOT QTDIR)
     set(QTDIR "" CACHE PATH "Qt root dir")
 endif()
 
+# Find ros pacakages
+find_package(catkin REQUIRED COMPONENTS
+  roscpp
+  sensor_msgs
+  std_msgs
+)
+
 # Finding QT PACKES AND GIVE OUTPUT
 find_package(Qt5SerialPort)
 find_package(Qt5Widgets)
@@ -48,6 +50,12 @@ find_package(Qt5Gui)
 find_package(Qt5Designer)
 find_package(Qt5Core)
 find_package(serial REQUIRED)
+
+# set main include directory
+include_directories(
+  ${MAIN_INCLUDE_PATH} # main include directory
+  ${catkin_INCLUDE_PATH}
+)
 
 if (Qt5OpenGL_FOUND)
     string(REGEX MATCHALL "([0-9])" QT_OPENGL_VERSION ${Qt5OpenGL_VERSION})
@@ -235,7 +243,7 @@ add_executable (FXD_FLT_TEST tests/fixed_float_test.cpp)
 add_executable (DATA_TYPES_TEST tests/data_types_test.cpp)
 add_executable (DATA_SERIZ_READ tests/data_serialization_test.cpp)
 add_executable (DATA_SERIZ_WRITE tests/data_serial_writer_test.cpp)
-add_executable (XIMU_ROS_DRIVER src/ros_driver/ximu_ros_driver.cpp)
+add_executable (xIMU_driver src/ros_driver/ximu_ros_driver.cpp)
 
 # if QT found build the tests/apps
 if (Qt5Widgets_FOUND)
@@ -287,7 +295,7 @@ target_link_libraries(FXD_FLT_TEST X-IMU-API)
 target_link_libraries(DATA_TYPES_TEST X-IMU-API)
 target_link_libraries(DATA_SERIZ_READ X-IMU-API)
 target_link_libraries(DATA_SERIZ_WRITE X-IMU-API)
-target_link_libraries(XIMU_ROS_DRIVER X-IMU-API ${serial_LIBRARIES})
+target_link_libraries(xIMU_driver X-IMU-API ${serial_LIBRARIES} ${catkin_LIBRARIES})
 
 # add ximu port dump for as test data
 configure_file(data/ximu.dmp ximu.dmp COPYONLY)
