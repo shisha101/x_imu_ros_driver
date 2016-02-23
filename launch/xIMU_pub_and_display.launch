@@ -1,0 +1,6 @@
+<launch>
+
+  <include file="$(find x_imu_ros_driver)/launch/xIMU_driver.launch"> </include>
+  <include file="$(find x_imu_ros_driver)/launch/xIMU_display.launch"> </include>
+
+</launch>

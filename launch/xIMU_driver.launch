@@ -1,0 +1,8 @@
+<launch>
+
+  <node pkg="x_imu_ros_driver" type="xIMU_driver" name="xIMU_node">
+    <param name="frame_name" value="imu_xIMU_position" />
+    <param name="port" value="/dev/xIMU" />
+  </node>
+
+</launch>
