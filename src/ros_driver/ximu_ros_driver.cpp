@@ -82,6 +82,8 @@ public:
     _mag_msg.magnetic_field.z = mag_data.z();
 
     // publish data
+    _mag_msg.header.stamp = ros::Time::now();
+    _imu_msg.header.stamp = ros::Time::now();
     _mag_data_pub.publish(_mag_msg);
     _imu_data_pub.publish(_imu_msg);
 
