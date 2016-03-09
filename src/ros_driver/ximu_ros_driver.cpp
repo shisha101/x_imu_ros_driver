@@ -94,10 +94,12 @@ public:
 #endif
   }
 
-  int run_Ximu_ros_driver()
+  int run_Ximu_ros_driver(int num_retries=10, int sleep_s=1)
   {
+    ros::Rate loop_sleep_duration(1/sleep_s);
     open_serial_port();
-    while(ros::ok() && !_serial_obj.isOpen()) {
+    int retries = 0;
+    while(ros::ok() && !_serial_obj.isOpen() && retries < num_retries) {
       if(!_serial_obj.isOpen())
       {
         std::cout << "serial port is closed, attempting to open" << std::endl;
@@ -108,21 +110,26 @@ public:
         std::cout << "serial port is open" << std::endl;
         break;
       }
-      usleep(3000 * 1000 * 0.1);
+      loop_sleep_duration.sleep();
+      //usleep(3000 * 1000 * 0.1);
+      retries++;
     }
 
-    while (_serial_obj.available() == 0 && ros::ok())
-    {
-      std::cout << "no chars on buffer, waiting ... check xIMU connection " << std::endl;
-      usleep(1000 * 1000 * 0.1);
+    if(should_quit(retries, num_retries)){
+      return -1;
     }
-    while (_serial_obj.available() < 4 && ros::ok())
+    retries = 0;
+
+    while (_serial_obj.available() < 4 && ros::ok() && retries < num_retries)
     {
       std::cout << "not enough chars on buffer, waiting ..." << std::endl;
-      usleep(1000 * 1000 * 0.1);
+      loop_sleep_duration.sleep();
     }
-    if(!_serial_obj.available() < 4)
-    { std::cout << "xIMU is reading data ..." << std::endl; }
+
+    if(should_quit(retries, num_retries)){
+      return -1;
+    }
+    retries = 0;
 
   while(ros::ok()){
       std::vector<u_int8_t> serial_in;
@@ -135,15 +142,24 @@ public:
       {
         std::cout << "SerialException exception" << std::endl;
         _serial_obj.close();
-        usleep(1000 * 1000 * 0.1);
+        if (!_serial_obj.isOpen()){
         open_serial_port();
-        usleep(1000 * 1000 * 0.1);
+        }
+        else{
+          ros::spinOnce();
+          loop_sleep_duration.sleep();
+        }
       }
       catch(serial::PortNotOpenedException& e)
       {
         std::cout << "port not open exception" << std::endl;
+        if (!_serial_obj.isOpen()){
         open_serial_port();
-        usleep(1000 * 1000 * 0.1);
+        }
+        else{
+          ros::spinOnce();
+          loop_sleep_duration.sleep();
+        }
       }
 
 #ifdef NDEBUG
@@ -165,6 +181,14 @@ public:
       std::cout << e.what() << std::endl;
       std::cout << "serial open has thrown an exception make sure the device is connected"<< std::endl;
     }
+  }
+
+  bool should_quit(int retries, int num_retries){
+    if (retries >= num_retries){
+      std::cout << "number of retries exceded quitting xIMU driver" << std::endl;
+      return true; // quit driver
+    }
+    return false;
   }
 
   // getters and setters
