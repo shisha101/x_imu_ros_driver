@@ -12,6 +12,9 @@
 //#ifndef NDEBUG
 //#define NDEBUG
 //#endif
+#ifdef NDEBUG
+#include <tf/transform_datatypes.h>
+#endif
 
 
 class XimuROS : public ximu::ReaderBase { //:  public ximu::WriterBase
@@ -51,13 +54,21 @@ public:
 
   virtual void recievedQuaternionData(ximu::QuaternionData& q) {
     _imu_msg.orientation.w = q.w();
-    _imu_msg.orientation.x = q.x();
-    _imu_msg.orientation.y = q.y();
-    _imu_msg.orientation.z = q.z();
+    _imu_msg.orientation.x = -q.x();
+    _imu_msg.orientation.y = -q.y();
+    _imu_msg.orientation.z = -q.z();
 //    _imu_data_pub.publish(_imu_msg);
 #ifdef NDEBUG
     std::cout << "Quaternion recieved" << std::endl;
-    std::printf("the Quaternion values are : w %7.3f   x %7.3f   y %7.3f   z %7.3f \n", q.w(), q.x(), q.y(), q.z());
+    tf::Quaternion quat_debug(_imu_msg.orientation.x, _imu_msg.orientation.y, _imu_msg.orientation.z, _imu_msg.orientation.w);
+    double r,p,y ;
+    tf::Matrix3x3(quat_debug).getEulerYPR(y, p, r);
+    std::printf("the magnitude of the quaternion is %7.3f \n", sqrt((pow(q.w(),2)+pow(q.x(),2)+pow(q.y(),2)+pow(q.z(),2))));
+    std::printf("the Quaternion values are : w %7.3f   x %7.3f   y %7.3f   z %7.3f raw \n", q.w(), q.x(), q.y(), q.z());
+    std::printf("the Quaternion values are : w %7.3f   x %7.3f   y %7.3f   z %7.3f  message \n", _imu_msg.orientation.w, _imu_msg.orientation.x, _imu_msg.orientation.y, _imu_msg.orientation.z);
+    std::printf("the rpy values are roll:%7.3f pitch:%7.3f yaw:%7.3f message \n", r/_deg_to_rad, p/_deg_to_rad, y/_deg_to_rad);
+    std::vector<float> rpy_onboard = q.eulerAngles();
+    std::printf("the rpy values are roll:%7.3f pitch:%7.3f yaw:%7.3f raw \n", rpy_onboard[0], rpy_onboard[1], rpy_onboard[2]);
 #endif
   }
 
@@ -88,6 +99,7 @@ public:
     _imu_data_pub.publish(_imu_msg);
 
 #ifdef NDEBUG
+    std::printf("the Quaternion values are : w %7.3f   x %7.3f   y %7.3f   z %7.3f  before pub \n", _imu_msg.orientation.w, _imu_msg.orientation.x, _imu_msg.orientation.y, _imu_msg.orientation.z);
     std::printf("the acc values are x %7.3f   y %7.3f   z %7.3f \n", acc_data.x(), acc_data.y(),acc_data.z());
     std::printf("the gyro values are x %7.3f   y %7.3f   z %7.3f \n", gyro_data.x(), gyro_data.y(),gyro_data.z());
     std::printf("the mag values are x %7.3f   y %7.3f   z %7.3f \n", mag_data.x(), mag_data.y(),mag_data.z());
@@ -137,6 +149,7 @@ public:
       size_t num_chars_read = _serial_obj.read(serial_in, 1);
       this->fill(serial_in.begin(), serial_in.end()); // fill the buffer of the c++ api used for decoding
       read(); // decode data from c++ api buffer and call appropriate decoding fucntion and in turn virtual functions
+      ros::spinOnce();
       }
       catch(serial::SerialException& e)
       {
@@ -161,11 +174,6 @@ public:
           loop_sleep_duration.sleep();
         }
       }
-
-#ifdef NDEBUG
-      std::cout << "the numbers of chars read on the serail read command is/are: " << num_chars_read << std::endl;
-#endif
-
   }
   }
   void open_serial_port()

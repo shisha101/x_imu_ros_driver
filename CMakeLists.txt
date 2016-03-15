@@ -51,6 +51,13 @@ find_package(Qt5Designer)
 find_package(Qt5Core)
 find_package(serial REQUIRED)
 
+catkin_package(
+#  INCLUDE_DIRS include
+#  LIBRARIES x_imu_ros_driver
+#  CATKIN_DEPENDS roscpp sensor_msgs std_msgs
+#  DEPENDS system_lib
+)
+
 # set main include directory
 include_directories(
   ${MAIN_INCLUDE_PATH} # main include directory

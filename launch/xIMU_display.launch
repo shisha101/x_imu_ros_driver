@@ -1,6 +1,6 @@
 <launch>
 
-  <node pkg="imu_visualization" type="display_3D_visualization.py" name="xIMU_3D_visualization_node" output="screen">
+  <node pkg="imu_visualization" type="display_3D_visualization.py" name="xIMU_3D_visualization_node">
 	<param name="imu_topic" value="/sensor/imu/xIMU/data" />
 	<param name="imu_name" value="xIMU" />
 	<param name="mag_topic" value="/sensor/imu/xIMU/magfield_msg" />
