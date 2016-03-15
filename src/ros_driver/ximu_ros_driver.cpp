@@ -154,24 +154,24 @@ public:
       catch(serial::SerialException& e)
       {
         std::cout << "SerialException exception" << std::endl;
+        loop_sleep_duration.sleep();
         _serial_obj.close();
         if (!_serial_obj.isOpen()){
         open_serial_port();
         }
         else{
           ros::spinOnce();
-          loop_sleep_duration.sleep();
         }
       }
       catch(serial::PortNotOpenedException& e)
       {
         std::cout << "port not open exception" << std::endl;
+        loop_sleep_duration.sleep();
         if (!_serial_obj.isOpen()){
         open_serial_port();
         }
         else{
           ros::spinOnce();
-          loop_sleep_duration.sleep();
         }
       }
   }
@@ -193,7 +193,7 @@ public:
 
   bool should_quit(int retries, int num_retries){
     if (retries >= num_retries){
-      std::cout << "number of retries exceded quitting xIMU driver" << std::endl;
+      ROS_WARN("number of retries exceded quitting xIMU driver");
       return true; // quit driver
     }
     return false;
