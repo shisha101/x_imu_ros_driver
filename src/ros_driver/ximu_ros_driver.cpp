@@ -12,6 +12,9 @@
 //#ifndef NDEBUG
 //#define NDEBUG
 //#endif
+#ifdef NDEBUG
+#include <tf/transform_datatypes.h>
+#endif
 
 
 class XimuROS : public ximu::ReaderBase { //:  public ximu::WriterBase
@@ -51,13 +54,21 @@ public:
 
   virtual void recievedQuaternionData(ximu::QuaternionData& q) {
     _imu_msg.orientation.w = q.w();
-    _imu_msg.orientation.x = q.x();
-    _imu_msg.orientation.y = q.y();
-    _imu_msg.orientation.z = q.z();
+    _imu_msg.orientation.x = -q.x();
+    _imu_msg.orientation.y = -q.y();
+    _imu_msg.orientation.z = -q.z();
 //    _imu_data_pub.publish(_imu_msg);
 #ifdef NDEBUG
     std::cout << "Quaternion recieved" << std::endl;
-    std::printf("the Quaternion values are : w %7.3f   x %7.3f   y %7.3f   z %7.3f \n", q.w(), q.x(), q.y(), q.z());
+    tf::Quaternion quat_debug(_imu_msg.orientation.x, _imu_msg.orientation.y, _imu_msg.orientation.z, _imu_msg.orientation.w);
+    double r,p,y ;
+    tf::Matrix3x3(quat_debug).getEulerYPR(y, p, r);
+    std::printf("the magnitude of the quaternion is %7.3f \n", sqrt((pow(q.w(),2)+pow(q.x(),2)+pow(q.y(),2)+pow(q.z(),2))));
+    std::printf("the Quaternion values are : w %7.3f   x %7.3f   y %7.3f   z %7.3f raw \n", q.w(), q.x(), q.y(), q.z());
+    std::printf("the Quaternion values are : w %7.3f   x %7.3f   y %7.3f   z %7.3f  message \n", _imu_msg.orientation.w, _imu_msg.orientation.x, _imu_msg.orientation.y, _imu_msg.orientation.z);
+    std::printf("the rpy values are roll:%7.3f pitch:%7.3f yaw:%7.3f message \n", r/_deg_to_rad, p/_deg_to_rad, y/_deg_to_rad);
+    std::vector<float> rpy_onboard = q.eulerAngles();
+    std::printf("the rpy values are roll:%7.3f pitch:%7.3f yaw:%7.3f raw \n", rpy_onboard[0], rpy_onboard[1], rpy_onboard[2]);
 #endif
   }
 
@@ -67,9 +78,9 @@ public:
     ximu::Vector3f gyro_data = data.gyroscope();
     ximu::Vector3f mag_data = data.magnetometer();
     // accelerometer data
-    _imu_msg.linear_acceleration.x = acc_data.x();
-    _imu_msg.linear_acceleration.y = acc_data.y();
-    _imu_msg.linear_acceleration.z = acc_data.z();
+    _imu_msg.linear_acceleration.x = acc_data.x() * _G_to_m_s2;
+    _imu_msg.linear_acceleration.y = acc_data.y() * _G_to_m_s2;
+    _imu_msg.linear_acceleration.z = acc_data.z() * _G_to_m_s2;
 
     // gyroscope data
     _imu_msg.angular_velocity.x = gyro_data.x() * _deg_to_rad;
@@ -88,16 +99,19 @@ public:
     _imu_data_pub.publish(_imu_msg);
 
 #ifdef NDEBUG
+    std::printf("the Quaternion values are : w %7.3f   x %7.3f   y %7.3f   z %7.3f  before pub \n", _imu_msg.orientation.w, _imu_msg.orientation.x, _imu_msg.orientation.y, _imu_msg.orientation.z);
     std::printf("the acc values are x %7.3f   y %7.3f   z %7.3f \n", acc_data.x(), acc_data.y(),acc_data.z());
     std::printf("the gyro values are x %7.3f   y %7.3f   z %7.3f \n", gyro_data.x(), gyro_data.y(),gyro_data.z());
     std::printf("the mag values are x %7.3f   y %7.3f   z %7.3f \n", mag_data.x(), mag_data.y(),mag_data.z());
 #endif
   }
 
-  int run_Ximu_ros_driver()
+  int run_Ximu_ros_driver(int num_retries=10, int sleep_s=1)
   {
+    ros::Rate loop_sleep_duration(1/sleep_s);
     open_serial_port();
-    while(ros::ok() && !_serial_obj.isOpen()) {
+    int retries = 0;
+    while(ros::ok() && !_serial_obj.isOpen() && retries < num_retries) {
       if(!_serial_obj.isOpen())
       {
         std::cout << "serial port is closed, attempting to open" << std::endl;
@@ -108,21 +122,26 @@ public:
         std::cout << "serial port is open" << std::endl;
         break;
       }
-      usleep(3000 * 1000 * 0.1);
+      loop_sleep_duration.sleep();
+      //usleep(3000 * 1000 * 0.1);
+      retries++;
     }
 
-    while (_serial_obj.available() == 0 && ros::ok())
-    {
-      std::cout << "no chars on buffer, waiting ... check xIMU connection " << std::endl;
-      usleep(1000 * 1000 * 0.1);
+    if(should_quit(retries, num_retries)){
+      return -1;
     }
-    while (_serial_obj.available() < 4 && ros::ok())
+    retries = 0;
+
+    while (_serial_obj.available() < 4 && ros::ok() && retries < num_retries)
     {
       std::cout << "not enough chars on buffer, waiting ..." << std::endl;
-      usleep(1000 * 1000 * 0.1);
+      loop_sleep_duration.sleep();
     }
-    if(!_serial_obj.available() < 4)
-    { std::cout << "xIMU is reading data ..." << std::endl; }
+
+    if(should_quit(retries, num_retries)){
+      return -1;
+    }
+    retries = 0;
 
   while(ros::ok()){
       std::vector<u_int8_t> serial_in;
@@ -130,26 +149,31 @@ public:
       size_t num_chars_read = _serial_obj.read(serial_in, 1);
       this->fill(serial_in.begin(), serial_in.end()); // fill the buffer of the c++ api used for decoding
       read(); // decode data from c++ api buffer and call appropriate decoding fucntion and in turn virtual functions
+      ros::spinOnce();
       }
       catch(serial::SerialException& e)
       {
         std::cout << "SerialException exception" << std::endl;
+        loop_sleep_duration.sleep();
         _serial_obj.close();
-        usleep(1000 * 1000 * 0.1);
+        if (!_serial_obj.isOpen()){
         open_serial_port();
-        usleep(1000 * 1000 * 0.1);
+        }
+        else{
+          ros::spinOnce();
+        }
       }
       catch(serial::PortNotOpenedException& e)
       {
         std::cout << "port not open exception" << std::endl;
+        loop_sleep_duration.sleep();
+        if (!_serial_obj.isOpen()){
         open_serial_port();
-        usleep(1000 * 1000 * 0.1);
+        }
+        else{
+          ros::spinOnce();
+        }
       }
-
-#ifdef NDEBUG
-      std::cout << "the numbers of chars read on the serail read command is/are: " << num_chars_read << std::endl;
-#endif
-
   }
   }
   void open_serial_port()
@@ -165,6 +189,14 @@ public:
       std::cout << e.what() << std::endl;
       std::cout << "serial open has thrown an exception make sure the device is connected"<< std::endl;
     }
+  }
+
+  bool should_quit(int retries, int num_retries){
+    if (retries >= num_retries){
+      ROS_WARN("number of retries exceded quitting xIMU driver");
+      return true; // quit driver
+    }
+    return false;
   }
 
   // getters and setters
@@ -218,6 +250,7 @@ private:
   std::string _frame_id;
   u_int32_t _baude_rate;
   const double _deg_to_rad = M_PI/180;
+  const double _G_to_m_s2 = 9.81;
 };
 
 
