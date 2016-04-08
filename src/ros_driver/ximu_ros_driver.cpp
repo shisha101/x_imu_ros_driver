@@ -78,9 +78,9 @@ public:
     ximu::Vector3f gyro_data = data.gyroscope();
     ximu::Vector3f mag_data = data.magnetometer();
     // accelerometer data
-    _imu_msg.linear_acceleration.x = acc_data.x();
-    _imu_msg.linear_acceleration.y = acc_data.y();
-    _imu_msg.linear_acceleration.z = acc_data.z();
+    _imu_msg.linear_acceleration.x = acc_data.x() * _G_to_m_s2;
+    _imu_msg.linear_acceleration.y = acc_data.y() * _G_to_m_s2;
+    _imu_msg.linear_acceleration.z = acc_data.z() * _G_to_m_s2;
 
     // gyroscope data
     _imu_msg.angular_velocity.x = gyro_data.x() * _deg_to_rad;
@@ -250,6 +250,7 @@ private:
   std::string _frame_id;
   u_int32_t _baude_rate;
   const double _deg_to_rad = M_PI/180;
+  const double _G_to_m_s2 = 9.81;
 };
 
 
