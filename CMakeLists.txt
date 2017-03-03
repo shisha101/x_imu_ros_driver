@@ -320,7 +320,6 @@ if (Qt5Widgets_FOUND)
 endif (Qt5Widgets_FOUND)
 
 if (Qt5Widgets_FOUND AND Qt5OpenGL_FOUND)
-    MESSAGE("ADDING THJIS")
     add_test(QT_OPENGL QT_OPENGL_TEST)
     add_test(QT_OPEN_GL_MULTI_THREADING QT_MULTI_THREADING_TEST)
 endif ()
